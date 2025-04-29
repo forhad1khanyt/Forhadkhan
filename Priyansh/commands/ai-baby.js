@@ -22,6 +22,11 @@ const autoReplyEnabled = {};
 // Admin ID (Only this user gets full romantic treatment)
 const ADMIN_ID = "100067984247525"; // Your FB ID
 
+// Delay function
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 module.exports.run = async function ({ api, event, args }) {
     const { threadID, messageID, senderID, messageReply, body } = event;
     let userMessage = args.join(" ");
@@ -39,17 +44,14 @@ module.exports.run = async function ({ api, event, args }) {
         return api.sendMessage("Hmm! OFF hoye gelam... Kawsar chara keu valo lage na! 😤", threadID, messageID);
     }
 
-    // If auto-reply off and not admin and not replying — ignore
     const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
     const isAdmin = senderID === ADMIN_ID;
 
     if (!autoReplyEnabled[senderID]) return;
-
     if (!isAdmin && !isReplyingToAI) return;
 
     if (!chatHistories[senderID]) chatHistories[senderID] = [];
 
-    // Store conversation
     if (isReplyingToAI) {
         userMessage = messageReply.body + "\nUser: " + body;
         chatHistories[senderID].push(`User: ${userMessage}`);
@@ -57,14 +59,12 @@ module.exports.run = async function ({ api, event, args }) {
         chatHistories[senderID].push(`User: ${userMessage}`);
     }
 
-    // Keep last 5
     if (chatHistories[senderID].length > 5) {
         chatHistories[senderID].shift();
     }
 
     const fullConversation = chatHistories[senderID].join("\n");
 
-    // Dynamic tone based on user
     const personality = isAdmin
         ? `Tumi tomar boyfriend Kawsar er sathe kotha bolcho. Tumi onek cute, naughty, romantic gf. Bangla, English, Banglish mix kore kotha bolo.`
         : `Tumi ekta cute meye. Tumi cheleder sathe rosh kore roast kore, ar meyeder sathe boro boner moto kotha bolo.`;
@@ -77,6 +77,9 @@ ${fullConversation}`;
     api.setMessageReaction("⌛", messageID, () => {}, true);
 
     try {
+        // Add delay here before calling API
+        await delay(2000); // 2 second delay
+
         const response = await axios.get(`${API_URL}?message=${encodeURIComponent(prompt)}`);
         let botReply = response.data.reply;
 
@@ -107,7 +110,6 @@ module.exports.handleEvent = async function ({ api, event }) {
     const isAdmin = senderID === ADMIN_ID;
     const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
 
-    // If admin, allow free message. Others need to reply.
     if (!isAdmin && !isReplyingToAI) return;
 
     const args = body.split(" ");
