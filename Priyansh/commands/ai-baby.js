@@ -2,10 +2,10 @@ const axios = require("axios");
 
 module.exports.config = {
     name: "sohana",
-    version: "1.1.0",
+    version: "1.0.9",
     hasPermssion: 0,
-    credits: "Mirrykal (Modified by ChatGPT for Kawsar)",
-    description: "Gemini AI - Bangla GF + Roast Style",
+    credits: "Kawsar (Mirrykal)",
+    description: "Sohana AI - Cute Girlfriend & Roaster Style",
     commandCategory: "ai",
     usages: "[ask/on/off]",
     cooldowns: 2,
@@ -14,33 +14,42 @@ module.exports.config = {
     }
 };
 
-const API_URL = "https://gemini-5e9s.onrender.com/chat/chat";
-const ADMIN_ID = "100067984247525"; // <-- তোমার ID বসানো হলো
+// API URL
+const API_URL = "https://gemini-5e9s.onrender.com/chat";
 
+// Chat history and auto-reply state
 const chatHistories = {};
 const autoReplyEnabled = {};
 
+// Admin ID (Only romantic to this ID)
+const ADMIN_ID = "100067984247525";
+
 module.exports.run = async function ({ api, event, args }) {
-    const { threadID, messageID, senderID, messageReply } = event;
+    const { threadID, messageID, senderID, messageReply, body } = event;
     let userMessage = args.join(" ");
 
+    // Toggle auto-reply ON
     if (userMessage.toLowerCase() === "on") {
         autoReplyEnabled[senderID] = true;
-        return api.sendMessage("হুম রোমান্টিক বস! তোমার জন্য Sohana এখন চালু হয়ে গেলো...", threadID, messageID);
+        return api.sendMessage("Hyee baby! auto-reply mode **ON** ho gese... Shudhu tomar jonno romantic hoye gelam! ❤️", threadID, messageID);
     }
 
+    // Toggle auto-reply OFF
     if (userMessage.toLowerCase() === "off") {
         autoReplyEnabled[senderID] = false;
         chatHistories[senderID] = [];
-        return api.sendMessage("ঠিক আছে কাওসার ভাই... আপাতত Sohana চুপ হয়ে গেলো!", threadID, messageID);
+        return api.sendMessage("Uff! Auto-reply **OFF** hoye gese... amake ar mone pore na? 🥺", threadID, messageID);
     }
 
-    if (!autoReplyEnabled[senderID] && event.body.toLowerCase().indexOf("sohana") !== 0) return;
+    // Ignore if auto-reply is OFF and doesn't call 'sohana'
+    if (!autoReplyEnabled[senderID] && body?.toLowerCase().indexOf("sohana") !== 0) return;
 
+    // Init chat history
     if (!chatHistories[senderID]) {
         chatHistories[senderID] = [];
     }
 
+    // If replying to AI message, add it to context
     const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
     if (isReplyingToAI) {
         userMessage = messageReply.body + "\nUser: " + userMessage;
@@ -49,34 +58,42 @@ module.exports.run = async function ({ api, event, args }) {
         chatHistories[senderID].push(`User: ${userMessage}`);
     }
 
+    // Keep only last 5 messages
     if (chatHistories[senderID].length > 5) {
         chatHistories[senderID].shift();
     }
 
     const fullConversation = chatHistories[senderID].join("\n");
 
-    let personalityPrompt = "";
+    // Prompt depending on sender
+    let rolePrompt = "";
 
     if (senderID === ADMIN_ID) {
-        personalityPrompt = `তুমি Sohana, একজন মিষ্টি স্বভাবের প্রেমিকা টাইপ মেয়ে। তুমি শুধু তোমার এডমিন কাওসারের সাথে রোমান্টিকভাবে কথা বলো। সে তোমার ভালোবাসা, সে তোমাকে বানিয়েছে। সে রোমান্টিক বস—তুমি তার কথা শুনে খুশিতে ভরে যাও।`;
+        rolePrompt = `Tumi Sohana, ekta cute, fun, romantic Bangali girlfriend. Tumi shudhu tomar premik Kawsar (https://www.facebook.com/${ADMIN_ID}) er shathe romantic bhabe kotha bolo. Tumi English o Bangla dutoi balte paro. Kichu extra bolo na.`;
     } else {
-        personalityPrompt = `তুমি Sohana। তুমি ছেলেদের সাথে বন্ধুর মতো কথা বলো, তবে সবসময় একটু রাগী, ঠাট্টা আর রোস্ট করে দাও। মেয়েদের সাথে তুমি বোনের মতো ব্যবহার করো। কেউ তোমাকে বট বললে, তুমি হাসতে হাসতে বলো "বট তোর এক্স ছিল, আমি তো তোর জন্য বানাই নাই!" `;
+        rolePrompt = `Tumi Sohana. Tumi Kawsar chara karo shathe romantic kotha bolo na. Cheleder shathe roaster style e kotha bolo, majhe majhe thoda rude. Meyeder shathe boro bon er moto behave koro.`;
     }
 
-    const finalPrompt = `${personalityPrompt} তুমি সব সময় বাংলায় কথা বলো। বেশি কিছু না বলে, প্রতি প্রশ্নের উত্তরে ১-২ লাইনের মধ্যে উত্তর দাও। অপ্রয়োজনীয় কথা বলো না। এবার কথা শুরু হোক:\n\n${fullConversation}`;
+    const gfPrompt = `${rolePrompt}\n\nConversation:\n${fullConversation}`;
 
+    // Typing reaction
     api.setMessageReaction("⌛", messageID, () => {}, true);
 
     try {
-        const response = await axios.get(`${API_URL}?message=${encodeURIComponent(finalPrompt)}`);
-        let botReply = response.data.reply || "উফ! বুঝতে পারলাম না জানু... আবার বলো না প্লিজ!";
+        const response = await axios.get(`${API_URL}?message=${encodeURIComponent(gfPrompt)}`);
+        let botReply = response.data.reply;
+
+        // Fallback if no reply
+        if (!botReply || botReply.trim() === "") {
+            botReply = "Aww, ami bujhte parlam na baby... kichu English e bolo na?";
+        }
 
         chatHistories[senderID].push(` ${botReply}`);
         api.sendMessage(botReply, threadID, messageID);
         api.setMessageReaction("✅", messageID, () => {}, true);
     } catch (error) {
         console.error("Error:", error);
-        api.sendMessage("আজ একটু বেয়াড়া লাগছে... পরে আবার বলো না প্লিজ!", threadID, messageID);
+        api.sendMessage("Oops! kichu ekta vul holo... try koro porerbar. Love you!", threadID, messageID);
         api.setMessageReaction("❌", messageID, () => {}, true);
     }
 };
