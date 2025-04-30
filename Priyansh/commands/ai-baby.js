@@ -18,6 +18,7 @@ const API_URL = "https://gemini-5e9s.onrender.com/chat";
 
 const chatHistories = {};
 const autoReplyEnabled = {};
+const ignoredUsers = {};  // Track ignored users
 
 // Only Admin gets romantic treatment
 const ADMIN_ID = "100067984247525";
@@ -82,6 +83,7 @@ ${fullConversation}`;
         api.setMessageReaction("❌", messageID, () => {}, true);
     }
 };
+
 module.exports.handleEvent = async function ({ api, event }) {
     const { threadID, messageID, senderID, body, messageReply } = event;
 
@@ -90,18 +92,17 @@ module.exports.handleEvent = async function ({ api, event }) {
     const lowerBody = body.toLowerCase();
 
     // Admin: says "sohana apu"
-if (isAdmin && lowerBody.includes("sohana apu")) {
-    autoReplyEnabled[senderID] = true;  // বট অন করে দিচ্ছে
-    const replies = [
-        "Ami tor kon jonmer apu..😡😡",
-        "Tor matha thik ache? Apu bolte shikhli kobe?",
-        "Tor ki ami apu mone hoy?",
-        "Sohana apu bolbi abar? Block khabi!",
-        "Apu bolle r raat e kotha hobe na! Bye!"
-    ];
-    const randomReply = replies[Math.floor(Math.random() * replies.length)];
-    return api.sendMessage(randomReply, threadID, messageID);
-}
+    if (isAdmin && lowerBody.includes("sohana apu")) {
+        const replies = [
+            "Ami tor kon jonmer apu..😡😡",
+            "Tor matha thik ache? Apu bolte shikhli kobe?",
+            "Tor ki ami apu mone hoy?",
+            "Sohana apu bolbi abar? Block khabi!",
+            "Apu bolle r raat e kotha hobe na! Bye!"
+        ];
+        const randomReply = replies[Math.floor(Math.random() * replies.length)];
+        return api.sendMessage(randomReply, threadID, messageID);
+    }
 
     // NON-ADMIN: "sohana apu"
     if (!isAdmin && lowerBody.includes("sohana apu")) {
@@ -152,6 +153,21 @@ if (isAdmin && lowerBody.includes("sohana apu")) {
             chatHistories[senderID] = [];
             return api.sendMessage("accha byy.. kichu bolar thakle janaben,😊😊", threadID, messageID);
         }
+    }
+
+    // Ignore command: Admin or Non-Admin
+    if (lowerBody.includes("ignore")) {
+        const ignoredUser = body.match(/@([0-9]+)/);
+        if (ignoredUser && ignoredUser[1]) {
+            const userID = ignoredUser[1];
+            ignoredUsers[userID] = true;
+            return api.sendMessage(`Sohana will now ignore messages from <@${userID}>`, threadID, messageID);
+        }
+    }
+
+    // Ignore all auto reply and stop chatting with non-ignored users
+    if (ignoredUsers[senderID]) {
+        return;
     }
 
     if (!autoReplyEnabled[senderID]) return;
