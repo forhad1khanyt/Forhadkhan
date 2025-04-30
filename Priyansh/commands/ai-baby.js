@@ -47,7 +47,7 @@ module.exports.run = async function ({ api, event, args }) {
     const isAdmin = senderID === ADMIN_ID;
 
     if (!autoReplyEnabled[senderID]) return;
-    if (!isAdmin && !isReplyingToAI) return;
+    if (!isReplyingToAI && !userMessage.toLowerCase().includes("sohana")) return;
 
     if (!chatHistories[senderID]) chatHistories[senderID] = [];
 
