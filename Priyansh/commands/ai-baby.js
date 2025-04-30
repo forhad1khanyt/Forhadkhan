@@ -18,14 +18,16 @@ const API_URL = "https://gemini-5e9s.onrender.com/chat";
 
 const chatHistories = {};
 const autoReplyEnabled = {};
+
+// Only Admin gets romantic treatment
 const ADMIN_ID = "100067984247525";
 
 module.exports.run = async function ({ api, event, args }) {
     const { threadID, messageID, senderID, messageReply, body } = event;
     let userMessage = args.join(" ");
-    const replySender = messageReply ? messageReply.senderID : senderID;
-    const isAdmin = replySender === ADMIN_ID;
+
     const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
+    const isAdmin = senderID === ADMIN_ID;
 
     if (!autoReplyEnabled[senderID]) return;
     if (!isReplyingToAI && !userMessage.toLowerCase().includes("sohana")) return;
@@ -46,11 +48,11 @@ module.exports.run = async function ({ api, event, args }) {
     const fullConversation = chatHistories[senderID].join("\n");
 
     const personality = isAdmin
-        ? `Tumi tomar boyfriend Kawsar er sathe kotha bolcho. Tumi onek cute, naughty, romantic gf. Tomar voice onek soft ar onubhuti-mishrito. Bangla, English, Banglish mix kore bolo.`
-        : `Tumi ekta virtual friend. Onno der sathe moja kore, halka roast, funny line bolo. Tumi vinito, short reply dao, formal na.`;
+        ? `Tumi tomar boyfriend Kawsar er sathe kotha bolcho. Tumi onek cute, naughty, romantic gf. Bangla, English, Banglish mix kore kotha bolo.`
+        : `Tumi ekta cute meye. Tumi cheleder sathe rosh kore roast kore, ar meyeder sathe boro boner moto kotha bolo.`;
 
     const prompt = `${personality}
-Kotha choto rakho, ekdom 1-2 line e. Extra info dio na. Bot na, nijeke manush bolo. Kawsar tomake toiri koreche.
+Kotha choto rakho, ekdom 1-2 line e. Extra info dio na. Bot na, nijeke manush bolo. Arun tomake banai, tar channel: m.youtube.com/@mirrykal
 
 ${fullConversation}`;
 
@@ -71,7 +73,7 @@ ${fullConversation}`;
         chatHistories[senderID].push(` ${botReply}`);
 
         setTimeout(() => {
-            api.sendMessage(botReply, threadID, messageID);
+            api.sendMessage(botReply, threadID, messageID); // Send bot's reply to the user
             api.setMessageReaction("✅", messageID, () => {}, true);
         }, 2000);
     } catch (error) {
@@ -83,10 +85,12 @@ ${fullConversation}`;
 
 module.exports.handleEvent = async function ({ api, event }) {
     const { threadID, messageID, senderID, body, messageReply } = event;
+
     const isAdmin = senderID === ADMIN_ID;
     const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
     const lowerBody = body.toLowerCase();
 
+    // Admin: Sohana Babu
     if (isAdmin && lowerBody.includes("sohana babu")) {
         if (autoReplyEnabled[senderID]) {
             return api.sendMessage("achi to pagla, bolo...😘😘", threadID, messageID);
@@ -96,6 +100,7 @@ module.exports.handleEvent = async function ({ api, event }) {
         }
     }
 
+    // Non-admin: Sohana Babu
     if (!isAdmin && lowerBody.includes("sohana babu")) {
         if (!autoReplyEnabled[senderID]) {
             autoReplyEnabled[senderID] = true;
@@ -105,6 +110,7 @@ module.exports.handleEvent = async function ({ api, event }) {
         }
     }
 
+    // Admin: By Babu
     if (isAdmin && lowerBody.includes("by babu")) {
         if (!autoReplyEnabled[senderID]) {
             return api.sendMessage("jaite chai na tao pathiye dicchho ?", threadID, messageID);
@@ -115,6 +121,7 @@ module.exports.handleEvent = async function ({ api, event }) {
         }
     }
 
+    // Non-admin: By Apu
     if (!isAdmin && lowerBody.includes("by apu")) {
         if (!autoReplyEnabled[senderID]) {
             return api.sendMessage("bye bolar o manei ache na jodio ami off e chilam... but okay! 😊😊", threadID, messageID);
@@ -126,11 +133,7 @@ module.exports.handleEvent = async function ({ api, event }) {
     }
 
     if (!autoReplyEnabled[senderID]) return;
-
-    if (
-        !isReplyingToAI &&
-        (!messageReply || messageReply.senderID !== api.getCurrentUserID())
-    ) return;
+    if (!isAdmin && !isReplyingToAI) return;
 
     const args = body.split(" ");
     module.exports.run({ api, event, args });
