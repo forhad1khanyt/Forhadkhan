@@ -82,7 +82,6 @@ ${fullConversation}`;
         api.setMessageReaction("❌", messageID, () => {}, true);
     }
 };
-
 module.exports.handleEvent = async function ({ api, event }) {
     const { threadID, messageID, senderID, body, messageReply } = event;
 
@@ -90,10 +89,32 @@ module.exports.handleEvent = async function ({ api, event }) {
     const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
     const lowerBody = body.toLowerCase();
 
+    // Admin: says "sohana apu"
+if (isAdmin && lowerBody.includes("sohana apu")) {
+    const replies = [
+        "Ami tor kon jonmer apu..😡😡",
+        "Tor matha thik ache? Apu bolte shikhli kobe?",
+        "Tor ki ami apu mone hoy?",
+        "Sohana apu bolbi abar? Block khabi!",
+        "Apu bolle r raat e kotha hobe na! Bye!"
+    ];
+    const randomReply = replies[Math.floor(Math.random() * replies.length)];
+    return api.sendMessage(randomReply, threadID, messageID);
+}
+
+    // NON-ADMIN: "sohana apu"
+    if (!isAdmin && lowerBody.includes("sohana apu")) {
+        if (!autoReplyEnabled[senderID]) {
+            autoReplyEnabled[senderID] = true;
+            return api.sendMessage("ji achi bolen kichu bolben?🌺", threadID, messageID);
+        }
+        return api.sendMessage("shunchi kichu bolte chan? 😏", threadID, messageID);
+    }
+
     // Admin: Sohana Babu
     if (isAdmin && lowerBody.includes("sohana babu")) {
         if (autoReplyEnabled[senderID]) {
-            return api.sendMessage("achi to pagla, bolo...😘😘", threadID, messageID);
+            return api.sendMessage("jan bar bar na deke parle kiss deoo😘😘? 💖", threadID, messageID);
         } else {
             autoReplyEnabled[senderID] = true;
             return api.sendMessage("sohana hajir, bolo jan ki koro? 💖", threadID, messageID);
