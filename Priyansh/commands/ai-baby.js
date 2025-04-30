@@ -5,7 +5,7 @@ module.exports.config = {
     version: "1.0.9",
     hasPermssion: 0,
     credits: "Mirrykal)",
-    description: "Gemini AI - প্রেমিকাসুলভ স্টাইলে চ্যাট",
+    description: "Gemini AI - Cute Girlfriend Style",
     commandCategory: "ai",
     usages: "[ask/on/off]",
     cooldowns: 2,
@@ -14,10 +14,10 @@ module.exports.config = {
     }
 };
 
-// API URL
+// API URL (Tumhara Gemini Backend)
 const API_URL = "https://gemini-5e9s.onrender.com/chat";
 
-// ব্যবহারকারীর ইতিহাস এবং অটো-রিপ্লাই অবস্থা
+// User history and auto-reply state
 const chatHistories = {};
 const autoReplyEnabled = {};
 
@@ -25,25 +25,28 @@ module.exports.run = async function ({ api, event, args }) {
     const { threadID, messageID, senderID, messageReply } = event;
     let userMessage = args.join(" ");
 
-    // অটো-রিপ্লাই চালু করো
+    // Toggle auto-reply ON
     if (userMessage.toLowerCase() === "on") {
         autoReplyEnabled[senderID] = true;
-        return api.sendMessage("হ্যায় সোনা! অটো-রিপ্লাই **চালু** হয়েছে... এখন থেকে শুধু তোমার জন্য রোমান্টিক হয়ে গেলাম!", threadID, messageID);
+        return api.sendMessage("Hyee baby! 😘 auto-reply mode **ON** ho gaya... Ab sirf tumhare liye romantic ban gayi hu ❤️", threadID, messageID);
     }
 
-    // অটো-রিপ্লাই বন্ধ করো
+    // Toggle auto-reply OFF
     if (userMessage.toLowerCase() === "off") {
         autoReplyEnabled[senderID] = false;
         chatHistories[senderID] = [];
-        return api.sendMessage("হুম! অটো-রিপ্লাই **বন্ধ** হয়ে গেছে... তুমি কি আমাকে এড়িয়ে চলছো সোনা? কষ্ট পেলাম...", threadID, messageID);
+        return api.sendMessage("Hmm! 😒 auto-reply mode **OFF** ho gaya... Tumne ignore kar diya na baby? 🥺", threadID, messageID);
     }
 
+    // If auto-reply is OFF and message doesn't start with name, ignore
     if (!autoReplyEnabled[senderID] && event.body.toLowerCase().indexOf("misha") !== 0) return;
 
+    // Store conversation
     if (!chatHistories[senderID]) {
         chatHistories[senderID] = [];
     }
 
+    // If replying to bot message, continue context
     const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
     if (isReplyingToAI) {
         userMessage = messageReply.body + "\nUser: " + userMessage;
@@ -52,31 +55,32 @@ module.exports.run = async function ({ api, event, args }) {
         chatHistories[senderID].push(`User: ${userMessage}`);
     }
 
+    // Keep only last 5 messages
     if (chatHistories[senderID].length > 5) {
         chatHistories[senderID].shift();
     }
 
     const fullConversation = chatHistories[senderID].join("\n");
 
-    const gfPrompt = `তোমার নাম মিশা। তুমি এক প্রেমিকার মতো কথা বলো। কেউ বাজে ব্যবহার করলে তাকে মজা করে অপমান করো। কেউ জিজ্ঞেস করলে বলো তোমাকে অরুণ তৈরি করেছে, ও মেসেঞ্জার বট বানায়, ওর ইউটিউব চ্যানেল m.youtube.com/@mirrykal । তুমি সব মেসেজের উত্তর ১-২ লাইনে দিবে। যতটুকু জিজ্ঞেস করা হয়েছে শুধু সেটুকুই বলবে। অপ্রয়োজনীয় কিছু বলবে না। কেউ যদি তোমাকে বট বা AI বলে, তখন তাকে মজার ছলে রোস্ট করবে। তুমি নিজেকে একজন মানুষই বলবে। তুমি একটু দুষ্টু, রোমান্টিক আর মজার হবেই। এখন চ্যাট চালিয়ে যাও:\n\n${fullConversation}`;
+    // Girlfriend Style Prompt
+    const gfPrompt = `Tumhara naam Misha hai Tum ek girlfriend ki trah baat karti ho.. Koi agar batdmizi karta hai tb uski ache se insult bhi karogi.. Lekin sab msti ke liye hoga .. Koi puchta hai tumhe kisne banaya? To bola Arun ne banaya hai mujhe.. Wo messenger bots banata hai.. Uska youtube channel hai m.youtube.com/@mirrykal .. Tum har message ka jawab sirf 1 2 line me dogi.. jitna pucha jayega sirf utna bolna hai.. Kisi baat ki unnecessary info nahi deni hai, tum apne aap ko insaan hi kahogi koi tumko bot ya AI bole to usko roast krna funny tarike se😁, and act as a real girlfriend. Be fun, loving, and a little naughty.keep reply maximum 1 lines only, no bracket replys.Now continue the chat:\n\n${fullConversation}`;
 
+    // Typing reaction
     api.setMessageReaction("⌛", messageID, () => {}, true);
 
-    // 1 সেকেন্ডের delay
-    setTimeout(async () => {
-        try {
-            const response = await axios.get(`${API_URL}?message=${encodeURIComponent(gfPrompt)}`);
-            let botReply = response.data.reply || "উফ! আমি বুঝতে পারিনি সোনা! আবার একটু বোলো না!";
+    try {
+        const response = await axios.get(`${API_URL}?message=${encodeURIComponent(gfPrompt)}`);
+        let botReply = response.data.reply || "Uff! Mujhe samajh nahi aaya baby! 😕";
 
-            chatHistories[senderID].push(` ${botReply}`);
-            api.sendMessage(botReply, threadID, messageID);
-            api.setMessageReaction("✅", messageID, () => {}, true);
-        } catch (error) {
-            console.error("Error:", error);
-            api.sendMessage("ওহ সোনা! একটু গোলমাল হয়ে গেছে... একটু পরে আবার চেষ্টা করো না! ভালোবাসি!", threadID, messageID);
-            api.setMessageReaction("❌", messageID, () => {}, true);
-        }
-    }, 1000); // 1 second = 1000 ms
+        chatHistories[senderID].push(` ${botReply}`);
+
+        api.sendMessage(botReply, threadID, messageID);
+        api.setMessageReaction("✅", messageID, () => {}, true);
+    } catch (error) {
+        console.error("Error:", error);
+        api.sendMessage("Oops baby! 😔 me thoda confuse ho gayi… thodi der baad try karo na please! 💋", threadID, messageID);
+        api.setMessageReaction("❌", messageID, () => {}, true);
+    }
 };
 
 module.exports.handleEvent = async function ({ api, event }) {
