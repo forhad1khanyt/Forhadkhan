@@ -1,11 +1,11 @@
 const axios = require("axios");
 
 module.exports.config = {
-    name: "sohana",
-    version: "1.1.0",
+    name: "misha",
+    version: "1.0.9",
     hasPermssion: 0,
-    credits: "Kawsar",
-    description: "Romantic Girlfriend Sohana",
+    credits: "Mirrykal)",
+    description: "Gemini AI - প্রেমিকাসুলভ স্টাইলে চ্যাট",
     commandCategory: "ai",
     usages: "[ask/on/off]",
     cooldowns: 2,
@@ -14,27 +14,39 @@ module.exports.config = {
     }
 };
 
+// API URL
 const API_URL = "https://gemini-5e9s.onrender.com/chat";
 
+// ব্যবহারকারীর ইতিহাস এবং অটো-রিপ্লাই অবস্থা
 const chatHistories = {};
 const autoReplyEnabled = {};
 
-// Only Admin gets romantic treatment
-const ADMIN_ID = "100067984247525";
-
 module.exports.run = async function ({ api, event, args }) {
-    const { threadID, messageID, senderID, messageReply, body } = event;
+    const { threadID, messageID, senderID, messageReply } = event;
     let userMessage = args.join(" ");
 
+    // অটো-রিপ্লাই চালু করো
+    if (userMessage.toLowerCase() === "on") {
+        autoReplyEnabled[senderID] = true;
+        return api.sendMessage("হ্যায় সোনা! অটো-রিপ্লাই **চালু** হয়েছে... এখন থেকে শুধু তোমার জন্য রোমান্টিক হয়ে গেলাম!", threadID, messageID);
+    }
+
+    // অটো-রিপ্লাই বন্ধ করো
+    if (userMessage.toLowerCase() === "off") {
+        autoReplyEnabled[senderID] = false;
+        chatHistories[senderID] = [];
+        return api.sendMessage("হুম! অটো-রিপ্লাই **বন্ধ** হয়ে গেছে... তুমি কি আমাকে এড়িয়ে চলছো সোনা? কষ্ট পেলাম...", threadID, messageID);
+    }
+
+    if (!autoReplyEnabled[senderID] && event.body.toLowerCase().indexOf("misha") !== 0) return;
+
+    if (!chatHistories[senderID]) {
+        chatHistories[senderID] = [];
+    }
+
     const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
-
-    if (!autoReplyEnabled[senderID]) return;
-    if (!isReplyingToAI && !userMessage.toLowerCase().includes("sohana")) return;
-
-    if (!chatHistories[senderID]) chatHistories[senderID] = [];
-
     if (isReplyingToAI) {
-        userMessage = messageReply.body + "\nUser: " + body;
+        userMessage = messageReply.body + "\nUser: " + userMessage;
         chatHistories[senderID].push(`User: ${userMessage}`);
     } else {
         chatHistories[senderID].push(`User: ${userMessage}`);
@@ -46,67 +58,34 @@ module.exports.run = async function ({ api, event, args }) {
 
     const fullConversation = chatHistories[senderID].join("\n");
 
-    const personality = `Tumi ekta cute meye. Tumi cheleder sathe rosh kore roast kore, ar meyeder sathe boro boner moto kotha bolo.`;
-
-    const prompt = `${personality}
-Kotha choto rakho, ekdom 1-2 line e. Extra info dio na. Bot na, nijeke manush bolo. Arun tomake banai, tar channel: m.youtube.com/@mirrykal
-
-${fullConversation}`;
+    const gfPrompt = `তোমার নাম মিশা। তুমি এক প্রেমিকার মতো কথা বলো। কেউ বাজে ব্যবহার করলে তাকে মজা করে অপমান করো। কেউ জিজ্ঞেস করলে বলো তোমাকে অরুণ তৈরি করেছে, ও মেসেঞ্জার বট বানায়, ওর ইউটিউব চ্যানেল m.youtube.com/@mirrykal । তুমি সব মেসেজের উত্তর ১-২ লাইনে দিবে। যতটুকু জিজ্ঞেস করা হয়েছে শুধু সেটুকুই বলবে। অপ্রয়োজনীয় কিছু বলবে না। কেউ যদি তোমাকে বট বা AI বলে, তখন তাকে মজার ছলে রোস্ট করবে। তুমি নিজেকে একজন মানুষই বলবে। তুমি একটু দুষ্টু, রোমান্টিক আর মজার হবেই। এখন চ্যাট চালিয়ে যাও:\n\n${fullConversation}`;
 
     api.setMessageReaction("⌛", messageID, () => {}, true);
 
-    try {
-        const response = await axios.get(`${API_URL}?message=${encodeURIComponent(prompt)}`);
-        let botReply = response.data.reply;
+    // 1 সেকেন্ডের delay
+    setTimeout(async () => {
+        try {
+            const response = await axios.get(`${API_URL}?message=${encodeURIComponent(gfPrompt)}`);
+            let botReply = response.data.reply || "উফ! আমি বুঝতে পারিনি সোনা! আবার একটু বোলো না!";
 
-        if (!botReply || botReply.trim() === "") {
-            botReply = "Aww, ami bujhte parlam na baby... kichu English e bolo na?";
-        }
-
-        if (botReply.startsWith("Sohana:")) {
-            botReply = botReply.replace(/^Sohana:\s*/i, "");
-        }
-
-        chatHistories[senderID].push(` ${botReply}`);
-
-        setTimeout(() => {
-            api.sendMessage(botReply, threadID, messageID); // Send bot's reply to the user
+            chatHistories[senderID].push(` ${botReply}`);
+            api.sendMessage(botReply, threadID, messageID);
             api.setMessageReaction("✅", messageID, () => {}, true);
-        }, 2000);
-    } catch (error) {
-        console.error("Error:", error);
-        api.sendMessage("Oops baby! Ami confused hoye gelam... ekto pore try koro!", threadID, messageID);
-        api.setMessageReaction("❌", messageID, () => {}, true);
-    }
+        } catch (error) {
+            console.error("Error:", error);
+            api.sendMessage("ওহ সোনা! একটু গোলমাল হয়ে গেছে... একটু পরে আবার চেষ্টা করো না! ভালোবাসি!", threadID, messageID);
+            api.setMessageReaction("❌", messageID, () => {}, true);
+        }
+    }, 1000); // 1 second = 1000 ms
 };
 
 module.exports.handleEvent = async function ({ api, event }) {
     const { threadID, messageID, senderID, body, messageReply } = event;
 
-    const lowerBody = body.toLowerCase();
-
-    // Handle the auto-reply behavior regardless of admin or non-admin
-    if (lowerBody.includes("sohana babu")) {
-        if (!autoReplyEnabled[senderID]) {
-            autoReplyEnabled[senderID] = true;
-            return api.sendMessage("sohana hajir, bolo jan ki koro? 💖", threadID, messageID);
-        } else {
-            return api.sendMessage("achi to pagla, bolo...😘😘", threadID, messageID);
-        }
-    }
-
-    if (lowerBody.includes("by babu") || lowerBody.includes("by apu")) {
-        if (autoReplyEnabled[senderID]) {
-            autoReplyEnabled[senderID] = false;
-            chatHistories[senderID] = [];
-            return api.sendMessage("love you ... abar dekha hobe babu! 😔", threadID, messageID);
-        } else {
-            return api.sendMessage("bye bolar o manei ache na jodio ami off e chilam... but okay! 😊😊", threadID, messageID);
-        }
-    }
-
     if (!autoReplyEnabled[senderID]) return;
 
-    const args = body.split(" ");
-    module.exports.run({ api, event, args });
+    if (messageReply && messageReply.senderID === api.getCurrentUserID() && chatHistories[senderID]) {
+        const args = body.split(" ");
+        module.exports.run({ api, event, args });
+    }
 };
