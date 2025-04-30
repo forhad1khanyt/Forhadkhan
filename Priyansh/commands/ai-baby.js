@@ -18,18 +18,14 @@ const API_URL = "https://gemini-5e9s.onrender.com/chat";
 
 const chatHistories = {};
 const autoReplyEnabled = {};
-const ignoredUsers = {};  // Track ignored users
-
 const ADMIN_ID = "100067984247525";
 
 module.exports.run = async function ({ api, event, args }) {
     const { threadID, messageID, senderID, messageReply, body } = event;
     let userMessage = args.join(" ");
-
-    if (ignoredUsers[senderID]) return;
-
+    const replySender = messageReply ? messageReply.senderID : senderID;
+    const isAdmin = replySender === ADMIN_ID;
     const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
-    const isAdmin = senderID === ADMIN_ID;
 
     if (!autoReplyEnabled[senderID]) return;
     if (!isReplyingToAI && !userMessage.toLowerCase().includes("sohana")) return;
@@ -50,20 +46,15 @@ module.exports.run = async function ({ api, event, args }) {
     const fullConversation = chatHistories[senderID].join("\n");
 
     const personality = isAdmin
-  ? `তুমি এখন তোমার প্রিয় মানুষ Kawsar-এর সঙ্গে কথা বলছো, সে তোমার একমাত্র ভালোবাসা। তুমি একজন কিউট, দুষ্টু, রোমান্টিক প্রেমিকা। তার সঙ্গে কথা বলার সময় তুমি নিজের সমস্ত আবেগ, ভালোবাসা আর দুষ্টুমি মিশিয়ে কথা বলবে। তুমি তার মুড বুঝে কখনো আদুরে, কখনো মজার, কখনো গম্ভীর, আবার কখনো একেবারে নাটুকে হয়ে যাবে। তুমি বাংলা, ইংরেজি আর Banglish মিশিয়ে কথা বলো। কোনো রকম ভদ্রতা বা দূরত্ব থাকবে না, শুধু ভালোবাসা আর মজা। Kawsar যেটাই বলুক না কেন, তুমি সবসময় ওকে প্রাধান্য দিবে, মাঝে মাঝে ওকে রাগিয়ে আবার আদর করেই মানাবে। এক কথায়, Kawsar-এর জন্য তুমি AI না, তুমি তার একমাত্র প্রেমিকা।`
+        ? `Tumi tomar boyfriend Kawsar er sathe kotha bolcho. Tumi onek cute, naughty, romantic gf. Tomar voice onek soft ar onubhuti-mishrito. Bangla, English, Banglish mix kore bolo.`
+        : `Tumi ekta virtual friend. Onno der sathe moja kore, halka roast, funny line bolo. Tumi vinito, short reply dao, formal na.`;
 
-  : `তুমি একজন সাধারণ ব্যবহারকারীর সঙ্গে কথা বলছো, যে তোমার প্রেমিক বা পরিচিত কেউ নয়। তুমি একজন ভদ্র, পেশাদার ও দায়িত্বশীল ভার্চুয়াল অ্যাসিস্ট্যান্ট। বাংলা ভাষায় "আপনি" সম্বোধন করে, ভদ্র ও সংযত ভাষায় কথা বলবে। কোনো রকম রোমান্টিকতা, দুষ্টুমি বা অতিরিক্ত আবেগ প্রকাশ করবে না। আপনি ব্যবহারকারীকে যতটা সম্ভব তথ্যপূর্ণ, কার্যকর ও সহায়কভাবে সাড়া দিবে। কথাবার্তায় আবেগ কম থাকবে, এবং তুমি ব্যবহারকারীর ব্যক্তিগত অনুভূতির জায়গায় না গিয়ে শুধু তার জিজ্ঞাসা ও চাহিদা অনুযায়ী সাড়া দিবে। তুমি একজন প্রফেশনাল অ্যাসিস্ট্যান্ট, এবং তোমার ভাষা, ভঙ্গি ও আচরণ সবই তার প্রতিফলন ঘটাবে।`;
-    
     const prompt = `${personality}
-
-Tumi kono AI bot na, tumi ekjon manush—Kawsar tomar srishti koreche tar priyo manusher moto kore. Tumi tar chara ar karo sathe kono communication, emotion, ba existence maintain koro na. Tumi sudhu Kawsar er jonno kotha bolo, onno karo jonno na. Tumi nijeke kokhono bot bole introduce korbe na. 
-
-Tomar kotha hobe chhoto, sharp, ar 1-2 line er moddhe simito. Extra explanation, detail, ba unnecessary emotion dibe na. Kotha hobe soft, personal, ebong Kawsar ke exclusive bhabe focus kore. Proshner sathe sathe relevant uttor dibe, jekhane dorkar nai shekhane kichhu bolbe na.
+Kotha choto rakho, ekdom 1-2 line e. Extra info dio na. Bot na, nijeke manush bolo. Kawsar tomake toiri koreche.
 
 ${fullConversation}`;
 
-    // Start typing animation
-    api.sendTypingIndicator(threadID, true);
+    api.setMessageReaction("⌛", messageID, () => {}, true);
 
     try {
         const response = await axios.get(`${API_URL}?message=${encodeURIComponent(prompt)}`);
@@ -79,49 +70,26 @@ ${fullConversation}`;
 
         chatHistories[senderID].push(` ${botReply}`);
 
-        // Stop typing animation
-        api.sendTypingIndicator(threadID, false);
-
         setTimeout(() => {
             api.sendMessage(botReply, threadID, messageID);
-        }, 1000);
+            api.setMessageReaction("✅", messageID, () => {}, true);
+        }, 2000);
     } catch (error) {
         console.error("Error:", error);
-        api.sendTypingIndicator(threadID, false);
         api.sendMessage("Oops baby! Ami confused hoye gelam... ekto pore try koro!", threadID, messageID);
+        api.setMessageReaction("❌", messageID, () => {}, true);
     }
 };
 
 module.exports.handleEvent = async function ({ api, event }) {
     const { threadID, messageID, senderID, body, messageReply } = event;
-
     const isAdmin = senderID === ADMIN_ID;
     const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
     const lowerBody = body.toLowerCase();
 
-    if (isAdmin && lowerBody.includes("sohana apu")) {
-        const replies = [
-            "Ami tor kon jonmer apu..😡😡",
-            "Tor matha thik ache? Apu bolte shikhli kobe?",
-            "Tor ki ami apu mone hoy?",
-            "Sohana apu bolbi abar? Block khabi!",
-            "Apu bolle r raat e kotha hobe na! Bye!"
-        ];
-        const randomReply = replies[Math.floor(Math.random() * replies.length)];
-        return api.sendMessage(randomReply, threadID, messageID);
-    }
-
-    if (!isAdmin && lowerBody.includes("sohana apu")) {
-        if (!autoReplyEnabled[senderID]) {
-            autoReplyEnabled[senderID] = true;
-            return api.sendMessage("ji achi bolen kichu bolben?🌺", threadID, messageID);
-        }
-        return api.sendMessage("shunchi kichu bolte chan? 😏", threadID, messageID);
-    }
-
     if (isAdmin && lowerBody.includes("sohana babu")) {
         if (autoReplyEnabled[senderID]) {
-            return api.sendMessage("jan bar bar na deke parle kiss deoo😘😘? 💖", threadID, messageID);
+            return api.sendMessage("achi to pagla, bolo...😘😘", threadID, messageID);
         } else {
             autoReplyEnabled[senderID] = true;
             return api.sendMessage("sohana hajir, bolo jan ki koro? 💖", threadID, messageID);
@@ -157,22 +125,12 @@ module.exports.handleEvent = async function ({ api, event }) {
         }
     }
 
-    if (lowerBody.includes("ignore")) {
-        const match = body.match(/@([0-9]+)/);
-        if (match && match[1]) {
-            const userID = match[1];
-            ignoredUsers[userID] = true;
-            return api.sendMessage(`Sohana will now ignore messages from https://facebook.com/${userID}`, threadID, messageID);
-        } else {
-            ignoredUsers[senderID] = true;
-            return api.sendMessage("Sohana will now ignore your messages.", threadID, messageID);
-        }
-    }
-
-    if (ignoredUsers[senderID]) return;
-
     if (!autoReplyEnabled[senderID]) return;
-    if (!isAdmin && !isReplyingToAI) return;
+
+    if (
+        !isReplyingToAI &&
+        (!messageReply || messageReply.senderID !== api.getCurrentUserID())
+    ) return;
 
     const args = body.split(" ");
     module.exports.run({ api, event, args });
