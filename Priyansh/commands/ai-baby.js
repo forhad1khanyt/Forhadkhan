@@ -19,16 +19,13 @@ const API_URL = "https://gemini-5e9s.onrender.com/chat";
 const chatHistories = {};
 const autoReplyEnabled = {};
 
-// Only Admin gets romantic treatment
-const ADMIN_ID = "100067984247525";
-
 module.exports.run = async function ({ api, event, args }) {
     const { threadID, messageID, senderID, messageReply, body } = event;
     let userMessage = args.join(" ");
 
     const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
-    const isAdmin = senderID === ADMIN_ID;
 
+    // Only trigger when auto reply is enabled for the user
     if (!autoReplyEnabled[senderID]) return;
     if (!isReplyingToAI && !userMessage.toLowerCase().includes("sohana")) return;
 
@@ -42,17 +39,15 @@ module.exports.run = async function ({ api, event, args }) {
     }
 
     if (chatHistories[senderID].length > 5) {
-        chatHistories[senderID].shift();
+        chatHistories[senderID].shift(); // Keep the chat history to a manageable size
     }
 
     const fullConversation = chatHistories[senderID].join("\n");
 
-    const personality = isAdmin
-        ? `Tumi tomar boyfriend Kawsar er sathe kotha bolcho. Tumi onek cute, naughty, romantic gf. Bangla, English, Banglish mix kore kotha bolo.`
-        : `Tumi ekta cute meye. Tumi cheleder sathe rosh kore roast kore, ar meyeder sathe boro boner moto kotha bolo.`;
+    const personality = `Tumi ekta cute meye, romatic, naughty. Tumi Bangla, English, Banglish mix kore kotha bolo, kothao rosh koro, kothao romance.`;
 
     const prompt = `${personality}
-Kotha choto rakho, ekdom 1-2 line e. Extra info dio na. Bot na, nijeke manush bolo. Arun tomake banai, tar channel: m.youtube.com/@mirrykal
+Kotha choto rakho, ekdom 1-2 line e. Extra info dio na. Bot na, nijeke manush bolo.
 
 ${fullConversation}`;
 
@@ -64,10 +59,6 @@ ${fullConversation}`;
 
         if (!botReply || botReply.trim() === "") {
             botReply = "Aww, ami bujhte parlam na baby... kichu English e bolo na?";
-        }
-
-        if (botReply.startsWith("Sohana:")) {
-            botReply = botReply.replace(/^Sohana:\s*/i, "");
         }
 
         chatHistories[senderID].push(` ${botReply}`);
@@ -86,55 +77,25 @@ ${fullConversation}`;
 module.exports.handleEvent = async function ({ api, event }) {
     const { threadID, messageID, senderID, body, messageReply } = event;
 
-    const isAdmin = senderID === ADMIN_ID;
-    const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
     const lowerBody = body.toLowerCase();
 
-    // Admin: Sohana Babu
-    if (isAdmin && lowerBody.includes("sohana babu")) {
-        if (autoReplyEnabled[senderID]) {
-            return api.sendMessage("achi to pagla, bolo...😘😘", threadID, messageID);
-        } else {
-            autoReplyEnabled[senderID] = true;
-            return api.sendMessage("sohana hajir, bolo jan ki koro? 💖", threadID, messageID);
-        }
+    // Enable auto reply when "sohana on" is sent
+    if (lowerBody === "sohana on") {
+        autoReplyEnabled[senderID] = true;
+        return api.sendMessage("sohana hajir, bolo jan ki koro? 💖", threadID, messageID);
     }
 
-    // Non-admin: Sohana Babu
-    if (!isAdmin && lowerBody.includes("sohana babu")) {
-        if (!autoReplyEnabled[senderID]) {
-            autoReplyEnabled[senderID] = true;
-            return api.sendMessage("ami sudhu kawsar er, apni ojotha pirit dekhate ashben na...🥴🥴", threadID, messageID);
-        } else {
-            return api.sendMessage("hoyto vabi na hoy apu bolte sikhun...😤😤🌺", threadID, messageID);
-        }
-    }
-
-    // Admin: By Babu
-    if (isAdmin && lowerBody.includes("by babu")) {
-        if (!autoReplyEnabled[senderID]) {
-            return api.sendMessage("jaite chai na tao pathiye dicchho ?", threadID, messageID);
-        } else {
-            autoReplyEnabled[senderID] = false;
-            chatHistories[senderID] = [];
-            return api.sendMessage("love you ... abar dekha hobe babu! 😔", threadID, messageID);
-        }
-    }
-
-    // Non-admin: By Apu
-    if (!isAdmin && lowerBody.includes("by apu")) {
-        if (!autoReplyEnabled[senderID]) {
-            return api.sendMessage("bye bolar o manei ache na jodio ami off e chilam... but okay! 😊😊", threadID, messageID);
-        } else {
-            autoReplyEnabled[senderID] = false;
-            chatHistories[senderID] = [];
-            return api.sendMessage("accha byy.. kichu bolar thakle janaben,😊😊", threadID, messageID);
-        }
+    // Disable auto reply when "sohana off" is sent
+    if (lowerBody === "sohana off") {
+        autoReplyEnabled[senderID] = false;
+        chatHistories[senderID] = [];
+        return api.sendMessage("sohana off hoye gese, abaro dekha hobe babu! 😔", threadID, messageID);
     }
 
     if (!autoReplyEnabled[senderID]) return;
-    if (!isAdmin && !isReplyingToAI) return;
+    if (messageReply && messageReply.senderID === api.getCurrentUserID()) return;
 
+    // Continue with existing functionality to reply to user
     const args = body.split(" ");
     module.exports.run({ api, event, args });
 };
