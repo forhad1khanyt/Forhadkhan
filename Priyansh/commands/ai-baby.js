@@ -91,6 +91,7 @@ module.exports.handleEvent = async function ({ api, event }) {
 
     // Admin: says "sohana apu"
 if (isAdmin && lowerBody.includes("sohana apu")) {
+    autoReplyEnabled[senderID] = true;  // বট অন করে দিচ্ছে
     const replies = [
         "Ami tor kon jonmer apu..😡😡",
         "Tor matha thik ache? Apu bolte shikhli kobe?",
