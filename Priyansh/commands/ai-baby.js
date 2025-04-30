@@ -18,14 +18,15 @@ const API_URL = "https://gemini-5e9s.onrender.com/chat";
 
 const chatHistories = {};
 const autoReplyEnabled = {};
-const ignoredUsers = {};  // Track ignored users
+const ignoredUsers = {}; // Track ignored users
 
-// Only Admin gets romantic treatment
 const ADMIN_ID = "100067984247525";
 
 module.exports.run = async function ({ api, event, args }) {
     const { threadID, messageID, senderID, messageReply, body } = event;
     let userMessage = args.join(" ");
+
+    if (ignoredUsers[senderID]) return;
 
     const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
     const isAdmin = senderID === ADMIN_ID;
@@ -57,7 +58,7 @@ Kotha choto rakho, ekdom 1-2 line e. Extra info dio na. Bot na, nijeke manush bo
 
 ${fullConversation}`;
 
-    api.setMessageReaction("⌛", messageID, () => {}, true);
+    api.sendTypingIndicator(threadID, true); // typing animation on
 
     try {
         const response = await axios.get(`${API_URL}?message=${encodeURIComponent(prompt)}`);
@@ -73,14 +74,15 @@ ${fullConversation}`;
 
         chatHistories[senderID].push(` ${botReply}`);
 
+        api.sendTypingIndicator(threadID, false); // typing animation off
+
         setTimeout(() => {
             api.sendMessage(botReply, threadID, messageID);
-            api.setMessageReaction("✅", messageID, () => {}, true);
-        }, 2000);
+        }, 1000);
     } catch (error) {
         console.error("Error:", error);
+        api.sendTypingIndicator(threadID, false); // typing off on error
         api.sendMessage("Oops baby! Ami confused hoye gelam... ekto pore try koro!", threadID, messageID);
-        api.setMessageReaction("❌", messageID, () => {}, true);
     }
 };
 
@@ -91,10 +93,9 @@ module.exports.handleEvent = async function ({ api, event }) {
     const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
     const lowerBody = body.toLowerCase();
 
-    // Admin: says "sohana apu"
     if (isAdmin && lowerBody.includes("sohana apu")) {
         const replies = [
-            "Ami tor kon jonmer apu..😡😡",
+            "Ami tor kon jonmer apu..",
             "Tor matha thik ache? Apu bolte shikhli kobe?",
             "Tor ki ami apu mone hoy?",
             "Sohana apu bolbi abar? Block khabi!",
@@ -104,71 +105,65 @@ module.exports.handleEvent = async function ({ api, event }) {
         return api.sendMessage(randomReply, threadID, messageID);
     }
 
-    // NON-ADMIN: "sohana apu"
     if (!isAdmin && lowerBody.includes("sohana apu")) {
         if (!autoReplyEnabled[senderID]) {
             autoReplyEnabled[senderID] = true;
-            return api.sendMessage("ji achi bolen kichu bolben?🌺", threadID, messageID);
+            return api.sendMessage("ji achi bolen kichu bolben?", threadID, messageID);
         }
-        return api.sendMessage("shunchi kichu bolte chan? 😏", threadID, messageID);
+        return api.sendMessage("shunchi kichu bolte chan?", threadID, messageID);
     }
 
-    // Admin: Sohana Babu
     if (isAdmin && lowerBody.includes("sohana babu")) {
         if (autoReplyEnabled[senderID]) {
-            return api.sendMessage("jan bar bar na deke parle kiss deoo😘😘? 💖", threadID, messageID);
+            return api.sendMessage("jan bar bar na deke parle kiss deoo?", threadID, messageID);
         } else {
             autoReplyEnabled[senderID] = true;
-            return api.sendMessage("sohana hajir, bolo jan ki koro? 💖", threadID, messageID);
+            return api.sendMessage("sohana hajir, bolo jan ki koro?", threadID, messageID);
         }
     }
 
-    // Non-admin: Sohana Babu
     if (!isAdmin && lowerBody.includes("sohana babu")) {
         if (!autoReplyEnabled[senderID]) {
             autoReplyEnabled[senderID] = true;
-            return api.sendMessage("ami sudhu kawsar er, apni ojotha pirit dekhate ashben na...🥴🥴", threadID, messageID);
+            return api.sendMessage("ami sudhu kawsar er, apni ojotha pirit dekhate ashben na...", threadID, messageID);
         } else {
-            return api.sendMessage("hoyto vabi na hoy apu bolte sikhun...😤😤🌺", threadID, messageID);
+            return api.sendMessage("hoyto vabi na hoy apu bolte sikhun...", threadID, messageID);
         }
     }
 
-    // Admin: By Babu
     if (isAdmin && lowerBody.includes("by babu")) {
         if (!autoReplyEnabled[senderID]) {
             return api.sendMessage("jaite chai na tao pathiye dicchho ?", threadID, messageID);
         } else {
             autoReplyEnabled[senderID] = false;
             chatHistories[senderID] = [];
-            return api.sendMessage("love you ... abar dekha hobe babu! 😔", threadID, messageID);
+            return api.sendMessage("love you ... abar dekha hobe babu!", threadID, messageID);
         }
     }
 
-    // Non-admin: By Apu
     if (!isAdmin && lowerBody.includes("by apu")) {
         if (!autoReplyEnabled[senderID]) {
-            return api.sendMessage("bye bolar o manei ache na jodio ami off e chilam... but okay! 😊😊", threadID, messageID);
+            return api.sendMessage("bye bolar o manei ache na jodio ami off e chilam... but okay!", threadID, messageID);
         } else {
             autoReplyEnabled[senderID] = false;
             chatHistories[senderID] = [];
-            return api.sendMessage("accha byy.. kichu bolar thakle janaben,😊😊", threadID, messageID);
+            return api.sendMessage("accha byy.. kichu bolar thakle janaben,", threadID, messageID);
         }
     }
 
-    // Ignore command: Admin or Non-Admin
     if (lowerBody.includes("ignore")) {
-        const ignoredUser = body.match(/@([0-9]+)/);
-        if (ignoredUser && ignoredUser[1]) {
-            const userID = ignoredUser[1];
+        const match = body.match(/@([0-9]+)/);
+        if (match && match[1]) {
+            const userID = match[1];
             ignoredUsers[userID] = true;
-            return api.sendMessage(`Sohana will now ignore messages from <@${userID}>`, threadID, messageID);
+            return api.sendMessage(`Sohana will now ignore messages from https://facebook.com/${userID}`, threadID, messageID);
+        } else {
+            ignoredUsers[senderID] = true;
+            return api.sendMessage("Sohana will now ignore your messages.", threadID, messageID);
         }
     }
 
-    // Ignore all auto reply and stop chatting with non-ignored users
-    if (ignoredUsers[senderID]) {
-        return;
-    }
+    if (ignoredUsers[senderID]) return;
 
     if (!autoReplyEnabled[senderID]) return;
     if (!isAdmin && !isReplyingToAI) return;
