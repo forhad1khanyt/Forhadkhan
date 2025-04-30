@@ -26,23 +26,7 @@ module.exports.run = async function ({ api, event, args }) {
     const { threadID, messageID, senderID, messageReply, body } = event;
     let userMessage = args.join(" ");
 
-    if (userMessage.toLowerCase() === "on") {
-        if (autoReplyEnabled[senderID]) {
-            return api.sendMessage("Already ON ache baby... abar bolish keno? Tui na!", threadID, messageID);
-        }
-        autoReplyEnabled[senderID] = true;
-        return api.sendMessage("Sohana romantic mode ON korse! Ready achi babu! 💖", threadID, messageID);
-    }
-
-    if (userMessage.toLowerCase() === "off") {
-        if (!autoReplyEnabled[senderID]) {
-            return api.sendMessage("Already OFF ache baby... abar by bolish keno?", threadID, messageID);
-        }
-        autoReplyEnabled[senderID] = false;
-        chatHistories[senderID] = [];
-        return api.sendMessage("Hmm! OFF hoye gelam... abar dekha hobe! 😔", threadID, messageID);
-    }
-
+    
     const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
     const isAdmin = senderID === ADMIN_ID;
 
@@ -109,22 +93,22 @@ module.exports.handleEvent = async function ({ api, event }) {
     const lowerBody = body.toLowerCase();
 
     // Trigger without prefix
-    if (isAdmin && lowerBody.includes("sohana babu")) {
+     if (isAdmin && lowerBody.includes("sohana babu")) {
         if (autoReplyEnabled[senderID]) {
-            return api.sendMessage("Already ON ache babu... abar abar bolish keno? Tui na ekdom pagla!", threadID, messageID);
-        } else {
-            autoReplyEnabled[senderID] = true;
-            return api.sendMessage("Sohana romantic mode ON korse! Tomar jonno ready achi! 💖", threadID, messageID);
-        }
+        return api.sendMessage("Hum bolo babu, shunchi... tomar jonno to ami ready always!", threadID, messageID);
+    } else {
+        autoReplyEnabled[senderID] = true;
+        return api.sendMessage("sohana hajir, bolo jan ki koro? 💖", threadID, messageID);
+    }
     }
 
     if (isAdmin && lowerBody.includes("by babu")) {
         if (!autoReplyEnabled[senderID]) {
-            return api.sendMessage("Ami toh already OFF ache... abar by bolish keno baby?", threadID, messageID);
+            return api.sendMessage("jaite chai na tao pathiye dicchho ?", threadID, messageID);
         } else {
             autoReplyEnabled[senderID] = false;
             chatHistories[senderID] = [];
-            return api.sendMessage("Hmm! OFF hoye gelam... abar dekha hobe babu! 😔", threadID, messageID);
+            return api.sendMessage("love you ... abar dekha hobe babu! 😔", threadID, messageID);
         }
     }
 
@@ -137,14 +121,13 @@ module.exports.handleEvent = async function ({ api, event }) {
         }
     }
 
-    if (!isAdmin && lowerBody.includes("by apu")) {
-        if (!autoReplyEnabled[senderID]) {
-            return api.sendMessage("Ami toh on-i chhilam na... abar off korte ashcho keno?", threadID, messageID);
-        } else {
-            autoReplyEnabled[senderID] = false;
-            chatHistories[senderID] = [];
-            return api.sendMessage("Bye re! Off hoye gelam!", threadID, messageID);
-        }
+    if (!isAdmin && lowerBody.includes("sohana apu")) {
+    if (autoReplyEnabled[senderID]) {
+        return api.sendMessage("Hmm... shunchi, bolen?", threadID, messageID);
+    } else {
+        autoReplyEnabled[senderID] = true;
+        return api.sendMessage("Kichu bolte chan?", threadID, messageID);
+    }
     }
 
     if (!autoReplyEnabled[senderID]) return;
