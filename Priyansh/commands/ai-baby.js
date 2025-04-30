@@ -2,9 +2,9 @@ const axios = require("axios");
 
 module.exports.config = {
     name: "sohana",
-    version: "1.0.9",
+    version: "1.1.0",
     hasPermssion: 0,
-    credits: "Kawsar (Mirrykal)",
+    credits: "Kawsar",
     description: "Romantic Girlfriend Sohana",
     commandCategory: "ai",
     usages: "[ask/on/off]",
@@ -19,29 +19,28 @@ const API_URL = "https://gemini-5e9s.onrender.com/chat";
 const chatHistories = {};
 const autoReplyEnabled = {};
 
-// Admin ID (Only this user gets full romantic treatment)
-const ADMIN_ID = "100067984247525"; // Your FB ID
-
-// Delay function
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+// Only Admin gets romantic treatment
+const ADMIN_ID = "100067984247525";
 
 module.exports.run = async function ({ api, event, args }) {
     const { threadID, messageID, senderID, messageReply, body } = event;
     let userMessage = args.join(" ");
 
-    // Turn on
     if (userMessage.toLowerCase() === "on") {
+        if (autoReplyEnabled[senderID]) {
+            return api.sendMessage("Already ON ache baby... abar bolish keno? Tui na!", threadID, messageID);
+        }
         autoReplyEnabled[senderID] = true;
-        return api.sendMessage("Sohana romantic mode ON korse! Kawsar baby'r jonno ready achi! 💖", threadID, messageID);
+        return api.sendMessage("Sohana romantic mode ON korse! Ready achi babu! 💖", threadID, messageID);
     }
 
-    // Turn off
     if (userMessage.toLowerCase() === "off") {
+        if (!autoReplyEnabled[senderID]) {
+            return api.sendMessage("Already OFF ache baby... abar by bolish keno?", threadID, messageID);
+        }
         autoReplyEnabled[senderID] = false;
         chatHistories[senderID] = [];
-        return api.sendMessage("Hmm! OFF hoye gelam... Kawsar chara keu valo lage na! 😤", threadID, messageID);
+        return api.sendMessage("Hmm! OFF hoye gelam... abar dekha hobe! 😔", threadID, messageID);
     }
 
     const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
@@ -77,9 +76,6 @@ ${fullConversation}`;
     api.setMessageReaction("⌛", messageID, () => {}, true);
 
     try {
-        // Add delay here before calling API
-        await delay(2000); // 2 second delay
-
         const response = await axios.get(`${API_URL}?message=${encodeURIComponent(prompt)}`);
         let botReply = response.data.reply;
 
@@ -87,14 +83,17 @@ ${fullConversation}`;
             botReply = "Aww, ami bujhte parlam na baby... kichu English e bolo na?";
         }
 
-        // Clean up Gemini's response if it starts with "Sohana:"
         if (botReply.startsWith("Sohana:")) {
             botReply = botReply.replace(/^Sohana:\s*/i, "");
         }
 
         chatHistories[senderID].push(` ${botReply}`);
-        api.sendMessage(botReply, threadID, messageID);
-        api.setMessageReaction("✅", messageID, () => {}, true);
+
+        // Adding delay before sending message
+        setTimeout(() => {
+            api.sendMessage(botReply, threadID, messageID);
+            api.setMessageReaction("✅", messageID, () => {}, true);
+        }, 2000); // 2000 milliseconds = 2 seconds delay
     } catch (error) {
         console.error("Error:", error);
         api.sendMessage("Oops baby! Ami confused hoye gelam... ekto pore try koro! 💋", threadID, messageID);
@@ -105,11 +104,50 @@ ${fullConversation}`;
 module.exports.handleEvent = async function ({ api, event }) {
     const { threadID, messageID, senderID, body, messageReply } = event;
 
-    if (!autoReplyEnabled[senderID]) return;
-
     const isAdmin = senderID === ADMIN_ID;
     const isReplyingToAI = messageReply && messageReply.senderID === api.getCurrentUserID();
+    const lowerBody = body.toLowerCase();
 
+    // Trigger without prefix
+    if (isAdmin && lowerBody.includes("sohana babu")) {
+        if (autoReplyEnabled[senderID]) {
+            return api.sendMessage("Already ON ache babu... abar abar bolish keno? Tui na ekdom pagla!", threadID, messageID);
+        } else {
+            autoReplyEnabled[senderID] = true;
+            return api.sendMessage("Sohana romantic mode ON korse! Tomar jonno ready achi! 💖", threadID, messageID);
+        }
+    }
+
+    if (isAdmin && lowerBody.includes("by babu")) {
+        if (!autoReplyEnabled[senderID]) {
+            return api.sendMessage("Ami toh already OFF ache... abar by bolish keno baby?", threadID, messageID);
+        } else {
+            autoReplyEnabled[senderID] = false;
+            chatHistories[senderID] = [];
+            return api.sendMessage("Hmm! OFF hoye gelam... abar dekha hobe babu! 😔", threadID, messageID);
+        }
+    }
+
+    if (!isAdmin && lowerBody.includes("sohana apu")) {
+        if (autoReplyEnabled[senderID]) {
+            return api.sendMessage("Ami toh already on achi! Eto excited keno?", threadID, messageID);
+        } else {
+            autoReplyEnabled[senderID] = true;
+            return api.sendMessage("Hmm! On hoye gelam, dekhi tumi ki bolo!", threadID, messageID);
+        }
+    }
+
+    if (!isAdmin && lowerBody.includes("by apu")) {
+        if (!autoReplyEnabled[senderID]) {
+            return api.sendMessage("Ami toh on-i chhilam na... abar off korte ashcho keno?", threadID, messageID);
+        } else {
+            autoReplyEnabled[senderID] = false;
+            chatHistories[senderID] = [];
+            return api.sendMessage("Bye re! Off hoye gelam!", threadID, messageID);
+        }
+    }
+
+    if (!autoReplyEnabled[senderID]) return;
     if (!isAdmin && !isReplyingToAI) return;
 
     const args = body.split(" ");
