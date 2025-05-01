@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const ytSearch = require("yt-search");
 const https = require("https");
+const http = require("http");  // http প্রোটোকল হ্যান্ডেল করার জন্য নতুন করে এই লাইব্রেরি যোগ করা হলো
 
 module.exports = {
   config: {
@@ -24,17 +25,19 @@ module.exports = {
   run: async function ({ api, event, args }) {
     let songName, type;
 
+    // প্রথমে song name এবং type (audio/video) বের করা হচ্ছে
     if (
       args.length > 1 &&
       (args[args.length - 1] === "audio" || args[args.length - 1] === "video")
     ) {
-      type = args.pop();
+      type = args.pop();  // type audio/video হতে পারে
       songName = args.join(" ");
     } else {
       songName = args.join(" ");
-      type = "video";
+      type = "video";  // যদি type না দেয়া থাকে, default video হবে
     }
 
+    // Processing message পাঠানো
     const processingMessage = await api.sendMessage(
       "✅ Processing your request. Please wait...",
       event.threadID,
@@ -43,46 +46,49 @@ module.exports = {
     );
 
     try {
-      // Search for the song on YouTube
+      // YouTube এ গানটি খোঁজা হচ্ছে
       const searchResults = await ytSearch(songName);
       if (!searchResults || !searchResults.videos.length) {
         throw new Error("No results found for your search query.");
       }
 
-      // Get the top result from the search
+      // শীর্ষ ফলাফল থেকে ভিডিও আইডি নেয়া হচ্ছে
       const topResult = searchResults.videos[0];
       const videoId = topResult.videoId;
 
-      // Construct API URL for downloading the top result
+      // API URL তৈরী করা হচ্ছে ডাউনলোডের জন্য
       const apiKey = "priyansh-here";
       const apiUrl = `https://priyansh-ai.onrender.com/youtube?id=${videoId}&type=${type}&apikey=${apiKey}`;
 
       api.setMessageReaction("⌛", event.messageID, () => {}, true);
 
-      // Get the direct download URL from the API
+      // API থেকে ডাউনলোড লিংক পাওয়া হচ্ছে
       const downloadResponse = await axios.get(apiUrl);
       const downloadUrl = downloadResponse.data.downloadUrl;
 
-      // Set the filename based on the song title and type
-      const safeTitle = topResult.title.replace(/[^a-zA-Z0-9 \-_]/g, ""); // Clean the title
+      // ফাইলের নাম তৈরী করা হচ্ছে
+      const safeTitle = topResult.title.replace(/[^a-zA-Z0-9 \-_]/g, ""); // গান বা ভিডিও টাইটেল পরিষ্কার করা হচ্ছে
       const filename = `${safeTitle}.${type === "audio" ? "mp3" : "mp4"}`;
       const downloadDir = path.join(__dirname, "cache");
       const downloadPath = path.join(downloadDir, filename);
 
-      // Ensure the directory exists
+      // ডাউনলোড ফোল্ডার নিশ্চিত করা হচ্ছে
       if (!fs.existsSync(downloadDir)) {
         fs.mkdirSync(downloadDir, { recursive: true });
       }
 
-      // Download the file and save locally
+      // ডাউনলোড ফাইল তৈরি হচ্ছে
       const file = fs.createWriteStream(downloadPath);
 
       await new Promise((resolve, reject) => {
-        https.get(downloadUrl, (response) => {
+        // এখানে http এবং https প্রোটোকল সাপোর্ট করা হচ্ছে
+        const client = downloadUrl.startsWith("https") ? https : http;  // যদি https থাকে তবে https ব্যবহার করবে, অন্যথায় http
+
+        client.get(downloadUrl, (response) => {
           if (response.statusCode === 200) {
-            response.pipe(file);
+            response.pipe(file);  // ফাইলটি ডাউনলোড হচ্ছে
             file.on("finish", () => {
-              file.close(resolve);
+              file.close(resolve);  // ডাউনলোড শেষ হলে ফাইলটি বন্ধ হবে
             });
           } else {
             reject(
@@ -90,14 +96,14 @@ module.exports = {
             );
           }
         }).on("error", (error) => {
-          fs.unlinkSync(downloadPath);
+          fs.unlinkSync(downloadPath);  // কোনো সমস্যা হলে ডাউনলোড ফাইল মুছে ফেলা হবে
           reject(new Error(`Error downloading file: ${error.message}`));
         });
       });
 
       api.setMessageReaction("✅", event.messageID, () => {}, true);
 
-      // Send the downloaded file to the user
+      // ফাইলটি পাঠিয়ে দেয়া হচ্ছে
       await api.sendMessage(
         {
           attachment: fs.createReadStream(downloadPath),
@@ -107,8 +113,8 @@ module.exports = {
         },
         event.threadID,
         () => {
-          fs.unlinkSync(downloadPath); // Cleanup after sending
-          api.unsendMessage(processingMessage.messageID);
+          fs.unlinkSync(downloadPath); // পাঠানোর পর ফাইলটি মুছে ফেলা হবে
+          api.unsendMessage(processingMessage.messageID);  // প্রক্রিয়া শেষ হলে "processing" বার্তাটি মুছে ফেলা হবে
         },
         event.messageID
       );
