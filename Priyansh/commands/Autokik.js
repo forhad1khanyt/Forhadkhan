@@ -1,25 +1,31 @@
 module.exports.config = {
   name: "autokick",
-  version: "1.0.0",
-  hasPermission: 2,
+  version: "1.1.0",
+  hasPermission: 0, // সাধারণ ইউজারও এই কমান্ড ব্যবহার করতে পারবে
   credits: "Modified by ChatGPT",
-  description: "Automatically kicks users from group if they use banned words",
+  description: "Auto kick users who use bad words (except owner)",
   commandCategory: "Admin",
   usages: "",
-  cooldowns: 5
+  cooldowns: 5,
 };
 
-const badWords = ["fuck", "bot", "spam", "nude", "idiot", "noob"]; // চাইলে এখানে আরও শব্দ যোগ করো
+// নিষিদ্ধ শব্দের লিস্ট
+const badWords = ["fuck", "bot", "spam", "nude", "idiot"];
+
+// Owner বা যাদের exempt করতে চাও তাদের UID বসাও
+const exemptUsers = ["100067984247525"]; // তোর UID
 
 module.exports.handleEvent = async function({ api, event }) {
   const { threadID, senderID, body } = event;
-
-  // যদি বার্তা না থাকে তাহলে ফাঁকা রিটার্ন
   if (!body) return;
 
   const message = body.toLowerCase();
+  const botID = api.getCurrentUserID();
 
-  // যদি কোনো নিষিদ্ধ শব্দ পাওয়া যায়
+  // যদি বট নিজে মেসেজ পাঠায় বা exempt UID হয়, তাহলে কিছু করবি না
+  if (senderID == botID || exemptUsers.includes(senderID)) return;
+
+  // যদি নিষিদ্ধ শব্দ থাকে
   if (badWords.some(word => message.includes(word))) {
     try {
       await api.removeUserFromGroup(senderID, threadID);
@@ -31,5 +37,4 @@ module.exports.handleEvent = async function({ api, event }) {
   }
 };
 
-// এই কমান্ডটি সরাসরি রান করার জন্য নয়, তাই ফাঁকা রাখা হয়েছে
 module.exports.run = () => {};
