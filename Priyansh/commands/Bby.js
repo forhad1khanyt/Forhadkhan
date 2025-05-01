@@ -69,7 +69,7 @@ module.exports.run = async function ({ api, event, args, Users }) {
 
     if (args[0] === 'edit') {
       const command = dipto.split(' - ')[1];
-      if (command.length < 2) {
+      if (!command || command.length < 2) {
         return api.sendMessage('❌ | Invalid format! Use edit [YourMessage] - [NewReply]', event.threadID, event.messageID);
       }
       const res = await axios.get(`${link}?edit=${args[1]}&replace=${command}`);
@@ -77,10 +77,13 @@ module.exports.run = async function ({ api, event, args, Users }) {
     }
 
     if (args[0] === 'teach' && args[1] !== 'amar' && args[1] !== 'react') {
+      if (!dipto.includes(' - ')) {
+        return api.sendMessage('❌ | Invalid format! Use [YourMessage] - [Reply1], [Reply2], [Reply3]...', event.threadID, event.messageID);
+      }
       const [comd, command] = dipto.split(' - ');
       const final = comd.replace("teach ", "");
-      if (command.length < 2) {
-        return api.sendMessage('❌ | Invalid format! Use [YourMessage] - [Reply1], [Reply2], [Reply3]... OR remove [YourMessage] OR list OR edit [YourMessage] - [NewReply]', event.threadID, event.messageID);
+      if (!command || command.length < 2) {
+        return api.sendMessage('❌ | Invalid format! Use [YourMessage] - [Reply1], [Reply2], [Reply3]...', event.threadID, event.messageID);
       }
       const re = await axios.get(`${link}?teach=${final}&reply=${command}&senderID=${uid}`);
       const name = await Users.getName(re.data.teacher) || "";
@@ -90,8 +93,8 @@ module.exports.run = async function ({ api, event, args, Users }) {
     if (args[0] === 'teach' && args[1] === 'amar') {
       const [comd, command] = dipto.split(' - ');
       const final = comd.replace("teach ", "");
-      if (command.length < 2) {
-        return api.sendMessage('❌ | Invalid format! Use [YourMessage] - [Reply1], [Reply2], [Reply3]... OR remove [YourMessage] OR list OR edit [YourMessage] - [NewReply]', event.threadID, event.messageID);
+      if (!command || command.length < 2) {
+        return api.sendMessage('❌ | Invalid format! Use [YourMessage] - [Reply1], [Reply2], [Reply3]...', event.threadID, event.messageID);
       }
       const re = await axios.get(`${link}?teach=${final}&senderID=${uid}&reply=${command}&key=intro`);
       return api.sendMessage(`✅ Replies added ${re.data.message}`, event.threadID, event.messageID);
@@ -100,8 +103,8 @@ module.exports.run = async function ({ api, event, args, Users }) {
     if (args[0] === 'teach' && args[1] === 'react') {
       const [comd, command] = dipto.split(' - ');
       const final = comd.replace("teach react ", "");
-      if (command.length < 2) {
-        return api.sendMessage('❌ | Invalid format! Use [teach] [YourMessage] - [Reply1], [Reply2], [Reply3]... OR [teach] [react] [YourMessage] - [react1], [react2], [react3]... OR remove [YourMessage] OR list OR edit [YourMessage] - [NewReply]', event.threadID, event.messageID);
+      if (!command || command.length < 2) {
+        return api.sendMessage('❌ | Invalid format! Use [teach] [YourMessage] - [react1], [react2]...', event.threadID, event.messageID);
       }
       const re = await axios.get(`${link}?teach=${final}&react=${command}`);
       return api.sendMessage(`✅ Replies added ${re.data.message}`, event.threadID, event.messageID);
@@ -112,18 +115,18 @@ module.exports.run = async function ({ api, event, args, Users }) {
       return api.sendMessage(response.data.reply, event.threadID, event.messageID);
     }
 
-     const a = (await axios.get(`${link}?text=${dipto}&senderID=${uid}&font=1`)).data.reply;
+    const a = (await axios.get(`${link}?text=${dipto}&senderID=${uid}&font=1`)).data.reply;
     return api.sendMessage(a, event.threadID,
-        (error, info) => {
-          global.client.handleReply.push({
-            name: this.config.name,
-            type: "reply",
-            messageID: info.messageID,
-            author: event.senderID,
-            lnk: a,
-            apiUrl: link
-          });
-        }, event.messageID);
+      (error, info) => {
+        global.client.handleReply.push({
+          name: this.config.name,
+          type: "reply",
+          messageID: info.messageID,
+          author: event.senderID,
+          lnk: a,
+          apiUrl: link
+        });
+      }, event.messageID);
 
   } catch (e) {
     console.error('Error in command execution:', e);
@@ -132,12 +135,12 @@ module.exports.run = async function ({ api, event, args, Users }) {
 };
 
 module.exports.handleReply = async function ({ api, event, handleReply }) {
-try{
-  if (event.type == "message_reply") {
-    const reply = event.body.toLowerCase();
-    if (isNaN(reply)) {
-      const b = (await axios.get(`${await baseApiUrl()}/baby?text=${encodeURIComponent(reply)}&senderID=${event.senderID}&font=1`)).data.reply;
-      await api.sendMessage(b, event.threadID, (error, info) => {
+  try {
+    if (event.type == "message_reply") {
+      const reply = event.body.toLowerCase();
+      if (isNaN(reply)) {
+        const b = (await axios.get(`${await baseApiUrl()}/baby?text=${encodeURIComponent(reply)}&senderID=${event.senderID}&font=1`)).data.reply;
+        await api.sendMessage(b, event.threadID, (error, info) => {
           global.client.handleReply.push({
             name: this.config.name,
             type: "reply",
@@ -145,40 +148,41 @@ try{
             author: event.senderID,
             lnk: b
           });
-        }, event.messageID,
-      )}}
-}catch(err){
+        }, event.messageID);
+      }
+    }
+  } catch (err) {
     return api.sendMessage(`Error: ${err.message}`, event.threadID, event.messageID);
-}};
+  }
+};
 
-   
 module.exports.handleEvent = async function ({ api, event }) {
-try{
-    const body = event.body ? event.body.toLowerCase() : ""
-    if(body.startsWith("baby") || body.startsWith("bby") || body.startsWith("janu")){
-        const arr = body.replace(/^\S+\s*/, "")
-      if(!arr) {
-                                     await api.sendMessage("Yes 😀, i am here ", event.threadID, (error, info) => {
+  try {
+    const body = event.body ? event.body.toLowerCase() : "";
+    if (body.startsWith("baby") || body.startsWith("bby") || body.startsWith("janu")) {
+      const arr = body.replace(/^\S+\s*/, "");
+      if (!arr) {
+        await api.sendMessage("Yes 😀, i am here ", event.threadID, (error, info) => {
           global.client.handleReply.push({
             name: this.config.name,
             type: "reply",
             messageID: info.messageID,
             author: event.senderID
           });
-        }, event.messageID,
-      )
+        }, event.messageID);
+      }
+      const a = (await axios.get(`${await baseApiUrl()}/baby?text=${encodeURIComponent(arr)}&senderID=${event.senderID}&font=1`)).data.reply;
+      await api.sendMessage(a, event.threadID, (error, info) => {
+        global.client.handleReply.push({
+          name: this.config.name,
+          type: "reply",
+          messageID: info.messageID,
+          author: event.senderID,
+          lnk: a
+        });
+      }, event.messageID);
     }
-    const a = (await axios.get(`${await baseApiUrl()}/baby?text=${encodeURIComponent(arr)}&senderID=${event.senderID}&font=1`)).data.reply;     
-        await api.sendMessage(a, event.threadID, (error, info) => {
-          global.client.handleReply.push({
-            name: this.config.name,
-            type: "reply",
-            messageID: info.messageID,
-            author: event.senderID,
-            lnk: a
-          });
-        }, event.messageID,
-      )}
-}catch(err){
+  } catch (err) {
     return api.sendMessage(`Error: ${err.message}`, event.threadID, event.messageID);
-}};
+  }
+};
