@@ -2,7 +2,7 @@ module.exports.config = {
 	name: "bio",
 	version: "1.0.0",
 	hasPermssion: 2,
-	credits: "forhad",
+	credits: "forhad khan",
 	description: "Change bot's bio",
 	commandCategory: "admin",
 	usages: "bio [text]",
