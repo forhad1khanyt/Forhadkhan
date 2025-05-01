@@ -1,7 +1,8 @@
 const axios = require('axios');
 
+// আপনার রেন্ডার লিংক এখানে সেট করা হয়েছে
 const baseApiUrl = async () => {
-     return "https://www.noobs-api.rf.gd/dipto";
+  return "https://gemini-5e9s.onrender.com";
 };
 
 module.exports.config = {
@@ -20,7 +21,7 @@ module.exports.config = {
 
 module.exports.run = async function ({ api, event, args, Users }) {
   try {
-    const link = `${await baseApiUrl()}/baby`;
+    const link = `${await baseApiUrl()}/baby`; // রেন্ডার লিংক এখানে ব্যবহৃত
     const dipto = args.join(" ").toLowerCase();
     const uid = event.senderID;
 
@@ -123,8 +124,7 @@ module.exports.run = async function ({ api, event, args, Users }) {
           type: "reply",
           messageID: info.messageID,
           author: event.senderID,
-          lnk: a,
-          apiUrl: link
+          lnk: a
         });
       }, event.messageID);
 
@@ -162,7 +162,7 @@ module.exports.handleEvent = async function ({ api, event }) {
     if (body.startsWith("baby") || body.startsWith("bby") || body.startsWith("janu")) {
       const arr = body.replace(/^\S+\s*/, "");
       if (!arr) {
-        await api.sendMessage("Yes 😀, i am here ", event.threadID, (error, info) => {
+        await api.sendMessage("কে গো ডাকে,😒😒🌺", event.threadID, (error, info) => {
           global.client.handleReply.push({
             name: this.config.name,
             type: "reply",
