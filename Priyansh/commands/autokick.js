@@ -1,34 +1,37 @@
 const fs = require("fs");
-const path = __dirname + "/../../includes/data/";
-
-const badWordsPath = path + "badWords.json";
-const warnedUsersPath = path + "warnedUsers.json";
-const adminUIDs = ["100067984247525"]; // এখানে শুধুমাত্র তোমার UID থাকবে
-
-function loadJSON(filePath) {
-  if (!fs.existsSync(filePath)) fs.writeFileSync(filePath, JSON.stringify({}));
-  return JSON.parse(fs.readFileSync(filePath));
-}
-
-function saveJSON(filePath, data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
+const path = require("path");
 
 module.exports.config = {
   name: "autokick",
   version: "2.0.0",
   hasPermission: 2,
   credits: "Modified by ChatGPT",
-  description: "Warn then kick user when bad words are used. Admin-only word edit support.",
+  description: "Auto kick user when bad words are used, with warning system and admin exception",
   commandCategory: "Admin",
-  usages: "/autokick show | edit <old> <new>",
+  usages: "[list/add/remove] [word]",
   cooldowns: 5,
 };
 
+const badWordsPath = path.join(__dirname, "autokick_badwords.json");
+const warnedUsersPath = path.join(__dirname, "autokick_warned.json");
+const adminUIDs = ["100067984247525"]; // শুধুমাত্র এই UID কে কিক না করে রিপ্লাই দেবে
+
+// Helper Functions
+function loadJSON(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function saveJSON(file, data) {
+  fs.writeFileSync(file, JSON.stringify(data, null, 2));
+}
+
 module.exports.handleEvent = async function ({ api, event }) {
   const { threadID, senderID, body } = event;
-
-  if (!body || adminUIDs.includes(senderID.toString())) return;
+  if (!body) return;
 
   const message = body.toLowerCase();
   const badWordsData = loadJSON(badWordsPath);
@@ -36,12 +39,17 @@ module.exports.handleEvent = async function ({ api, event }) {
   const matched = badWordsData.badWords?.some(word => message.includes(word));
 
   if (matched) {
+    // যদি এডমিন হয়
+    if (adminUIDs.includes(senderID.toString())) {
+      return api.sendMessage("ছি উস্তাদ, অন্যের জন্যে নিষিদ্ধ শব্দ আপনি ব্যবহার করতেছেন,,,,😞😞😞", threadID, event.messageID);
+    }
+
     const warns = warnedData[senderID] || 0;
 
     if (warns === 0) {
       warnedData[senderID] = 1;
       saveJSON(warnedUsersPath, warnedData);
-      return api.sendMessage(`⚠️ @${event.senderID}, নিষিদ্ধ শব্দ ব্যবহার করেছেন! পরের বার কিক করা হবে!`, threadID, null, [senderID]);
+      return api.sendMessage(`⚠️ @${senderID}, নিষিদ্ধ শব্দ ব্যবহার করেছেন! পরের বার কিক করা হবে!`, threadID, null, [senderID]);
     } else {
       try {
         await api.removeUserFromGroup(senderID, threadID);
@@ -57,24 +65,30 @@ module.exports.handleEvent = async function ({ api, event }) {
 
 module.exports.run = async function ({ api, event, args }) {
   const { threadID, senderID } = event;
+  if (!adminUIDs.includes(senderID.toString())) {
+    return api.sendMessage("❌ আপনি এই কমান্ড ব্যবহারের অনুমতি রাখেন না।", threadID);
+  }
+
   const badWordsData = loadJSON(badWordsPath);
 
-  if (!adminUIDs.includes(senderID.toString())) return api.sendMessage("❌ কেবল বট অ্যাডমিন এই কমান্ড চালাতে পারে।", threadID);
-
-  const subCmd = args[0];
-
-  if (subCmd === "show") {
-    return api.sendMessage(`🔒 নিষিদ্ধ শব্দ:\n${badWordsData.badWords.join(", ")}`, threadID);
+  if (args[0] === "list") {
+    const list = badWordsData.badWords || [];
+    return api.sendMessage(`📛 নিষিদ্ধ শব্দের তালিকা:\n${list.join(", ") || "কোনো শব্দ নেই।"}`, threadID);
   }
 
-  if (subCmd === "edit" && args[1] && args[2]) {
-    const index = badWordsData.badWords.indexOf(args[1]);
-    if (index === -1) return api.sendMessage(`❌ "${args[1]}" শব্দটি খুঁজে পাওয়া যায়নি।`, threadID);
-
-    badWordsData.badWords[index] = args[2];
+  if (args[0] === "add" && args[1]) {
+    if (!badWordsData.badWords) badWordsData.badWords = [];
+    badWordsData.badWords.push(args[1].toLowerCase());
     saveJSON(badWordsPath, badWordsData);
-    return api.sendMessage(`✅ "${args[1]}" এখন "${args[2]}" হয়েছে।`, threadID);
+    return api.sendMessage(`✅ শব্দ "${args[1]}" নিষিদ্ধ তালিকায় যোগ হয়েছে।`, threadID);
   }
 
-  return api.sendMessage("❌ সঠিক কমান্ড লিখুন:\n/autokick show\n/autokick edit <পুরানো শব্দ> <নতুন শব্দ>", threadID);
+  if (args[0] === "remove" && args[1]) {
+    if (!badWordsData.badWords) return api.sendMessage("❌ তালিকায় কোনো শব্দ নেই।", threadID);
+    badWordsData.badWords = badWordsData.badWords.filter(word => word !== args[1].toLowerCase());
+    saveJSON(badWordsPath, badWordsData);
+    return api.sendMessage(`❌ শব্দ "${args[1]}" তালিকা থেকে সরানো হয়েছে।`, threadID);
+  }
+
+  return api.sendMessage("❓ ব্যবহার:\n• autokick list\n• autokick add <word>\n• autokick remove <word>", threadID);
 };
