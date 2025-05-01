@@ -24,6 +24,11 @@ module.exports.handleEvent = async function({ api, event }) {
   const { threadID, senderID, body } = event;
   if (!body) return;
 
+  // ✅ বট অ্যাডমিন কিনা চেক করো
+  const threadInfo = await api.getThreadInfo(threadID);
+  const botIsAdmin = threadInfo.adminIDs.some(admin => admin.id === api.getCurrentUserID());
+  if (!botIsAdmin) return;
+
   const message = body.toLowerCase();
 
   // Load bad words
