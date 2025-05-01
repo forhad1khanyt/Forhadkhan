@@ -3,7 +3,7 @@ module.exports.config = {
 	name: "admin",
 	version: "1.0.5",
 	hasPermssion: 0,
-	credits: "𝐏𝐫𝐢𝐲𝐚𝐧𝐬𝐡 𝐑𝐚𝐣𝐩𝐮𝐭",
+	credits: "Forhad khan,
 	description: "Admin Config",
 	commandCategory: "Admin",
 	usages: "Admin",
