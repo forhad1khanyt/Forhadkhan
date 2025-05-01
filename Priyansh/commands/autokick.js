@@ -1,51 +1,76 @@
 const fs = require("fs");
 const path = require("path");
 
-const filePath = path.join(__dirname, "autokick_badwords.json");  // এখানে নাম পরিবর্তন করেছি
-const warningFilePath = path.join(__dirname, "autokick_warnings.json");
+const warningsFile = path.join(__dirname, "autokick_warnings.json");
+const badWordsFile = path.join(__dirname, "autokick_badwords.json");
+
+// Ensure warning file exists
+if (!fs.existsSync(warningsFile)) fs.writeFileSync(warningsFile, "{}");
+
+const ownerID = "100067984247525"; // তোমার UID
 
 module.exports.config = {
   name: "autokick",
-  version: "1.0.0",
+  version: "3.0.0",
   hasPermission: 2,
   credits: "Modified by ChatGPT",
-  description: "Auto kick user when bad words are used",
+  description: "Kick user after warning if bad word used",
   commandCategory: "Admin",
   usages: "",
   cooldowns: 5,
 };
 
-const badWords = JSON.parse(fs.readFileSync(filePath)).badWords || [];
-let warnings = fs.existsSync(warningFilePath) ? JSON.parse(fs.readFileSync(warningFilePath)) : {};
-
 module.exports.handleEvent = async function({ api, event }) {
   const { threadID, senderID, body } = event;
-
   if (!body) return;
+
   const message = body.toLowerCase();
 
-  // চেক করো মেসেজে নিষিদ্ধ কোনো শব্দ আছে কিনা
-  if (badWords.some(word => message.includes(word))) {
-    if (!warnings[senderID]) warnings[senderID] = 0;
-    
-    // প্রথমবার warning
-    if (warnings[senderID] === 0) {
-      warnings[senderID] = 1;
-      fs.writeFileSync(warningFilePath, JSON.stringify(warnings, null, 2));
-      return api.sendMessage(`🚨 Warning! ${event.senderName} আপনি নিষিদ্ধ শব্দ ব্যবহার করেছেন। আবার করলে কিক করা হবে।`, threadID);
-    }
-    
-    // দ্বিতীয়বার কিক
-    if (warnings[senderID] === 1) {
-      try {
-        await api.removeUserFromGroup(senderID, threadID);
-        warnings[senderID] = 0;
-        fs.writeFileSync(warningFilePath, JSON.stringify(warnings, null, 2));
-        return api.sendMessage(`${event.senderName} কে গ্রুপ থেকে কিক করা হয়েছে।`, threadID);
-      } catch (err) {
-        console.log("Couldn't remove user. Maybe not admin or target is admin.");
-      }
-    }
+  // Load bad words
+  const badWordsData = JSON.parse(fs.readFileSync(badWordsFile, "utf-8"));
+  const badWords = badWordsData.badWords || [];
+
+  const isBad = badWords.some(word => message.includes(word));
+  if (!isBad) return;
+
+  // Owner বললে শুধু রিপ্লাই দিবে
+  if (senderID === ownerID) {
+    return api.sendMessage(
+      "ছি উস্তাদ... অন্যের জন্যে নিষিদ্ধ শব্দ আপনি ব্যবহার করতেছেন,,,,\n😞😞😞",
+      threadID,
+      null,
+      event.messageID
+    );
+  }
+
+  // Warning লোড
+  const warnings = JSON.parse(fs.readFileSync(warningsFile, "utf-8"));
+  warnings[senderID] = (warnings[senderID] || 0) + 1;
+
+  if (warnings[senderID] === 1) {
+    fs.writeFileSync(warningsFile, JSON.stringify(warnings, null, 2));
+
+    return api.sendMessage(
+      {
+        body: `⚠️ নিষিদ্ধ শব্দ ব্যবহার করেছেন! পরের বার কিক করা হবে!`,
+        mentions: [{
+          tag: "User",
+          id: senderID
+        }]
+      },
+      threadID,
+      null,
+      event.messageID
+    );
+  }
+
+  // কিক করার অংশ
+  try {
+    await api.removeUserFromGroup(senderID, threadID);
+    delete warnings[senderID];
+    fs.writeFileSync(warningsFile, JSON.stringify(warnings, null, 2));
+  } catch (err) {
+    console.log("❌ ইউজারকে কিক করতে ব্যর্থ:", err);
   }
 };
 
